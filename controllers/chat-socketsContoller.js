@@ -1,5 +1,6 @@
 const checkAuth = require("../middleware/check-auth")
 const jwt = require("jsonwebtoken");
+const { v4: uuidv4 } = require('uuid');
 
 const SERVER_TOKEN_KEY = process.env.WEB_TOKEN_SECRET_KEY
 
@@ -47,14 +48,14 @@ module.exports = (io,app) => {
             const { message, room } = data;
             console.log(`msg: ${message}, room: ${room}`);
             let newMessage = {
+                messageID: uuidv4(),
                 userID: socket.userData.userID,
-                name: socket.userData.name,
+                userName: socket.userData.name,
                 message
             }
             socketHistory[room] = socketHistory[room] ? [...socketHistory[room], newMessage]: [newMessage]
             console.log(socketHistory[room])
             io.to(room).emit('chat', newMessage);
         });
-
     })
 }
