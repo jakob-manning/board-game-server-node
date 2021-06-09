@@ -1,5 +1,6 @@
 const checkAuth = require("../middleware/check-auth")
 const jwt = require("jsonwebtoken");
+const Room = require("../models/chatRoom");
 const { v4: uuidv4 } = require('uuid');
 
 const SERVER_TOKEN_KEY = process.env.WEB_TOKEN_SECRET_KEY
@@ -36,25 +37,66 @@ module.exports = (io,app) => {
             console.log(`Disconnected: ${socket.id}`)
         });
 
-        socket.on('join', (room) => {
+        socket.on('join', async (room) => {
             console.log(`Socket ${socket.id} joining ${room}`);
             socket.join(room);
-            if(!socketHistory[room]) socketHistory[room] = []
-            socket.emit('roomHistory', {room, history: socketHistory[room]});
+
+            // ask mongoose for room's chat history
+            let chatRoom
+            try{
+                chatRoom = await Room.findById(room)
+            } catch (e) {
+                console.log(e);
+                return socket.emit("error", "Error loading a chat room, please try again.")
+            }
+            if(!chatRoom){
+                return socket.emit("error", "You tried loading a chat room that doesn't exist.")
+            }
+            if(!chatRoom.messages){
+                return socket.emit('roomHistory', {room, history: []});
+            }
+
+            let history = chatRoom.messages.map(message => message.toObject({getters: true}))
+
+            socket.emit('roomHistory', {room, history});
         });
 
-        socket.on('chat', (data) => {
+        socket.on('chat', async (data) => {
+
             console.log("userData: " + socket.userData)
             const { message, room } = data;
             console.log(`msg: ${message}, room: ${room}`);
             let newMessage = {
-                messageID: uuidv4(),
                 userID: socket.userData.userID,
                 userName: socket.userData.name,
                 message
             }
-            socketHistory[room] = socketHistory[room] ? [...socketHistory[room], newMessage]: [newMessage]
-            console.log(socketHistory[room])
+
+            // store user on the database
+            // Find the right parent item
+            let chatRoom
+            try{
+                chatRoom = await Room.findById(room)
+            } catch (e) {
+                console.log(e);
+                return socket.emit("error", "Chatroom error, please try again.")
+            }
+            if(!chatRoom){
+                return socket.emit("error", "Can't find your chat room.")
+            }
+
+
+            // Add message to list
+            chatRoom.messages.push(newMessage)
+
+            try{
+                await chatRoom.save()
+            } catch (e) {
+                console.log(e);
+                return socket.emit("error", "Couldn't save your message, please try again.")
+            }
+
+            console.log("new message saved: " + newMessage)
             io.to(room).emit('chat', newMessage);
         });
     })

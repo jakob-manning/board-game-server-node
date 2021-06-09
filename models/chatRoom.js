@@ -4,6 +4,12 @@ const bcrypt = require('bcrypt');
 
 const Schema = mongoose.Schema;
 
+const messageSchema = new Schema({
+    message: {type: String, required: true},
+    userName: {type: String, required: true, ref: 'User'},
+    userID: {type: mongoose.Types.ObjectId, required: true, ref: 'User'},
+})
+
 const chatRoomSchema = new Schema({
     name: {type: String, required: true},
     description: {type: String, required: false},
@@ -13,14 +19,11 @@ const chatRoomSchema = new Schema({
     owners: [{type: mongoose.Types.ObjectId, required: false, ref: 'User'}],
     members: [{type: mongoose.Types.ObjectId, required: false, ref: 'User'}],
     password: {type: String, required: false, minlength: 6},
+    messages: [messageSchema]
 })
-
-chatRoomSchema.methods.isValidPassword = async function (password) {
-    const room = this;
-    const compare = await bcrypt.compare(password, room.password);
-    return compare;
-}
 
 chatRoomSchema.plugin(uniqueValidator);
 
 module.exports = mongoose.model("ChatRoom", chatRoomSchema)
+
+// exports.ChatRoom = mongoose.model("ChatRoom", chatRoomSchema)

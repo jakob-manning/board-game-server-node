@@ -1,19 +1,23 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose")
-const { validationResult } = require("express-validator");
+const {validationResult} = require("express-validator");
+const encodeUrl = require('encodeurl')
 
 const User = require("../models/user");
 const HttpError = require("../models/http-error");
+const sendVerificationEmail = require("../Email/verificationEmail");
 
 const SERVER_TOKEN_KEY = process.env.WEB_TOKEN_SECRET_KEY;
+const EMAIL_TOKEN_KEY = process.env.EMAIL_TOKEN_SECRET_KEY
+const BACKEND_ROOT = process.env.SERVER_BACKEND_ROOT + ""
 
 let usersController = {
-    getUsers: async (req, res,  next) => {
+    getUsers: async (req, res, next) => {
         let users;
         try {
             users = await User.find({}, '-password');
-        } catch (e) {
+        }catch (e) {
             console.log(e);
             return next(new HttpError("Something went wrong, couldn't find users.", 500))
         }
@@ -23,29 +27,29 @@ let usersController = {
     //  -- SIGN UP --
     signUp: async (req, res, next) => {
         const errors = validationResult(req)
-        if(!errors.isEmpty()){
+        if ( !errors.isEmpty() ) {
             console.log(errors)
             return next(new HttpError("Please provide a valid name, email, and password.", 422))
         }
 
-        const { name, email, password } = req.body;
+        const {name, email, password} = req.body;
 
         //ensure email isn't already in the database
         let existingUser;
         try {
             existingUser = await User.findOne({email});
-        } catch (e) {
+        }catch (e) {
             return next(new HttpError("Something went wrong, couldn't create user. Please try typing more gently.", 500))
         }
-        if(!!existingUser){
+        if ( !!existingUser ) {
             return next(new HttpError("Unable to create an account, please try again", 422))
         }
 
         // hash password
         let hashedPassword;
-        try{
+        try {
             hashedPassword = await bcrypt.hash(password, 12);
-        } catch (e) {
+        }catch (e) {
             return next(new HttpError(("Could not create user, please try again."), 500))
         }
 
@@ -57,40 +61,46 @@ let usersController = {
         })
 
         // store user on the database
-        try{
+        try {
             await newUser.save();
-        } catch (e) {
+        }catch (e) {
             console.log(e);
             return next(new HttpError("Something went wrong, couldn't create user. Please try again."), 403)
         }
 
-        // generate a token
-        let token;
+        // email the user with a sign-up token
+        // generate token
+        let emailToken
         try {
-            token = jwt.sign(
-                {userId: newUser.id, email: newUser.email, name: newUser.name},
-                SERVER_TOKEN_KEY,
-                {expiresIn: "7d"}
+            emailToken = jwt.sign(
+                {userId: newUser.id},
+                EMAIL_TOKEN_KEY,
+                {expiresIn: "5d"}
             );
         }catch (e) {
             return next(new HttpError("Unable to log you in, please try signing in again."), 403)
+        }
+        // Send the user a verification email
+        try{
+            await sendVerificationEmail(email, encodeURIComponent(emailToken).replace(/\./g, '%2E'))
+        } catch (e) {
+            console.log(e);
         }
 
         // return a jwt token and their new user id
         res
             .status(201)
             .json({
-                message: "signup successful",
+                message: "Signup successful. Please verify your email to continue.",
                 userId: newUser.id,
                 email: newUser.email,
-                token: token
             });
     },
 
     //  -- LOGIN --
     login: async (req, res, next) => {
         const errors = validationResult(req)
-        if(!errors.isEmpty()){
+        if ( !errors.isEmpty() ) {
             console.log(errors)
             return next(new HttpError("Please provide a valid email and password.", 422))
         }
@@ -145,7 +155,7 @@ let usersController = {
     //  -- DELETE USER --
     deleteUser: async (req, res, next) => {
         const errors = validationResult(req)
-        if(!errors.isEmpty()){
+        if ( !errors.isEmpty() ) {
             console.log(errors)
             return next(new HttpError("Please provide a valid email and password.", 422))
         }
@@ -184,9 +194,9 @@ let usersController = {
         try {
             const sess = await mongoose.startSession();
             sess.startTransaction();
-            await user.remove( {session: sess});
+            await user.remove({session: sess});
             await sess.commitTransaction()
-        } catch (e) {
+        }catch (e) {
             console.log(e);
             return next(new HttpError("Something went wrong, couldn't delete user.", 500))
         }
@@ -200,6 +210,79 @@ let usersController = {
                 email: user.email
             });
     },
+
+    // -- Activate User From Email --
+    activateFromToken: async (req, res, next) => {
+        const activationToken = req.params.activationToken
+        console.log("activation token is: " + activationToken);
+
+        // check token validity
+        try {
+            // expose userId and token for future middleware
+            const decodedToken = await jwt.verify(activationToken, EMAIL_TOKEN_KEY);
+            console.log(decodedToken)
+            console.log("decoded token user ID: " + decodedToken.userId)
+            // change this users status on the DB
+            await User.findByIdAndUpdate(decodedToken.userId, {active: true})
+        }catch (e) {
+            console.log(e);
+            return next(new HttpError("Your activation link didn't work, perhaps it's expired?", 500));
+        }
+
+        // respond with success
+        res.redirect(process.env.FRONT_END_ROOT + "/login");
+    },
+
+
+    // --- RESEND VERIFICATION TOKEN ---
+    resendVerificationToken: async (req, res, next) => {
+        // find user on the database
+        let currentUser
+        try {
+            currentUser = await User.findById(req.userData.userID);
+        }catch (e) {
+            console.log(e);
+            return next(new HttpError("Connection erroroaroar. Please try again."), 403)
+        }
+        // check if user is already active
+        if ( currentUser.active !== false ) {
+            return next(res
+                .status(201)
+                .json({
+                    status: "Deja vu?",
+                    message: "You've already verified your email, come on in."
+                }))
+        }
+
+        // generate a token
+        let token
+        try {
+            token = jwt.sign(
+                {userId: req.userData.userID},
+                EMAIL_TOKEN_KEY,
+                {expiresIn: "5d"}
+            );
+        }catch (e) {
+            return next(new HttpError("Error connecting to the server, please try again."), 403)
+        }
+
+        // Send the verification email
+        console.log("token sent was: " + token)
+        try{
+            await sendVerificationEmail(req.userData.email, encodeURIComponent(token).replace(/\./g, '%2E'))
+        } catch (e) {
+            console.log(e);
+        }
+
+        // respond with success
+        res
+            .status(201)
+            .json({
+                status: "You've got mail!",
+                message: `Check your inbox at ${req.userData.email} for a verification email`,
+            });
+    },
+
     // -- REFRESH USER TOKEN --
     refreshToken: async (req, res, next) => {
 

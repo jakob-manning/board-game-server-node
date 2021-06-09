@@ -34,7 +34,15 @@ router.delete('/:uid',
     usersControllers.deleteUser
 )
 
+router.get('/activate/:activationToken',
+    usersControllers.activateFromToken
+)
+
 router.use(checkAuth)
+
+router.get('/resendVerificationEmail',
+    usersControllers.resendVerificationToken
+)
 
 router.post('/refreshToken',
     usersControllers.refreshToken

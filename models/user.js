@@ -8,6 +8,7 @@ const userSchema = new Schema({
     name: {type: String, required: true},
     email: {type: String, required: true, unique: true},
     password: {type: String, required: true, minlength: 6},
+    active: {type: Boolean, required: false, default: false},
 })
 
 userSchema.methods.isValidPassword = async function (password) {
