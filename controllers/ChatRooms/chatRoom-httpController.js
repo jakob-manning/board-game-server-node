@@ -32,7 +32,6 @@ let chatRoomHttpController = {
     getUserChatRooms: async (req, res, next) => {
         // Get user records
         let user;
-        console.log(req.userData.userID)
         try {
             user = await User.findById(req.userData.userID, '-password');
         }catch (e) {

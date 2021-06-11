@@ -1,11 +1,14 @@
-const checkAuth = require("../../middleware/check-auth")
+const checkAuth = require("../../../middleware/check-auth")
 const jwt = require("jsonwebtoken");
-const Room = require("../../models/chatRoom");
 const { v4: uuidv4 } = require('uuid');
+
+const Room = require("../../../models/chatRoom");
+const chatPermissionsHelper = require("./chatPermissionsHelper")
+
 
 const SERVER_TOKEN_KEY = process.env.WEB_TOKEN_SECRET_KEY
 
-const socketHistory = {}
+const liveSockets = {}
 
 // const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 
@@ -32,9 +35,19 @@ module.exports = (io,app) => {
 
     io.on('connection', (socket) => {
         console.log(`Connected: ${socket.id}`);
+        // link socket ID and userID
+        if(socket.userData.userID){
+            if(!liveSockets[socket.userData.userID]){
+                liveSockets[socket.userData.userID] = []
+            }
+            liveSockets[socket.userData.userID].push(socket.id)
+        }
 
         socket.on('disconnect', () => {
             console.log(`Disconnected: ${socket.id}`)
+            // remove user from live sockets
+            liveSockets[socket.userData.userID] = liveSockets[socket.userData.userID]
+                .filter(item => item !== socket.id)
         });
 
         socket.on('join', async (room) => {
@@ -119,12 +132,21 @@ module.exports = (io,app) => {
                 chatRoom.membersRead = new Map()
             }
             chatRoom.membersRead.set(userID, true)
-            console.log("members read logs")
-            console.log(userID)
-            console.log(chatRoom.membersRead)
-            console.log(typeof chatRoom.membersRead)
-
             chatRoom.save()
+        })
+
+        socket.on('addUsersToRoom', (data) => {
+            console.log("Request to Add Users To room")
+            console.log(data)
+            chatPermissionsHelper.addUsersToRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't add all users to room."))
+        })
+
+        socket.on('addUserToRoom', (data) => {
+            chatPermissionsHelper.addUserToRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't add user to room."))
+        })
+
+        socket.on('removeUserFromRoom', (data) => {
+            chatPermissionsHelper.removeUserFromRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't remove user from room."))
         })
 
     })

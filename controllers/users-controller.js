@@ -24,6 +24,29 @@ let usersController = {
         res.json({users: users.map(user => user.toObject({getters: true}))})
     },
 
+    // ---GET USER LIST---
+    getUserList: async (req, res, next) => {
+        let users;
+        try {
+            users = await User.find({}, '-password');
+        }catch (e) {
+            console.log(e);
+            return next(new HttpError("Something went wrong, couldn't find users.", 500))
+        }
+
+        users = users.map(user => user.toObject({getters: true}))
+        users = users.map(user => {
+            let userData = {
+                name: user.name,
+                email: user.email,
+                id: user.id
+            }
+            return userData
+        })
+
+        res.json({users})
+    },
+
     //  -- SIGN UP --
     signUp: async (req, res, next) => {
         const errors = validationResult(req)
@@ -42,7 +65,18 @@ let usersController = {
             return next(new HttpError("Something went wrong, couldn't create user. Please try typing more gently.", 500))
         }
         if ( !!existingUser ) {
-            return next(new HttpError("Unable to create an account, please try again", 422))
+            return next(new HttpError("That email is already in use, maybe you meant to sign in?", 422))
+        }
+
+        //ensure username isn't already in the database
+        existingUser = null;
+        try {
+            existingUser = await User.findOne({name});
+        }catch (e) {
+            return next(new HttpError("Something went wrong, couldn't create user. Please try typing more gently.", 500))
+        }
+        if ( !!existingUser ) {
+            return next(new HttpError("That username is already in use, please try to be a bit more creative", 422))
         }
 
         // hash password

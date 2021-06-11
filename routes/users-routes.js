@@ -6,12 +6,10 @@ const checkAuth = require("../middleware/check-auth")
 
 const router = express.Router();
 
-router.get('/', usersControllers.getUsers)
-
 router.post(
     '/signup',
     [
-        check('name').notEmpty(),
+        check('name').notEmpty().isLength({max:20}),
         check('email').normalizeEmail({all_lowercase: true}).isEmail(),
         check('password').isLength({min:6})
     ],
@@ -39,6 +37,10 @@ router.get('/activate/:activationToken',
 )
 
 router.use(checkAuth)
+
+router.get('/', usersControllers.getUserList)
+
+router.get('/all', usersControllers.getUsers)
 
 router.get('/resendVerificationEmail',
     usersControllers.resendVerificationToken
