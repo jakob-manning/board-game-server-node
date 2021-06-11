@@ -8,18 +8,22 @@ const messageSchema = new Schema({
     message: {type: String, required: true},
     userName: {type: String, required: true, ref: 'User'},
     userID: {type: mongoose.Types.ObjectId, required: true, ref: 'User'},
+    timeStamp: {type: Date, required: true, default: new Date()},
 })
 
 const chatRoomSchema = new Schema({
     name: {type: String, required: true},
     description: {type: String, required: false},
     dateCreated: {type: Date, required: true},
-    lastUsed: {type: Date, required: true},
+    lastUpdated: {type: Date, required: true},
+    open: {type: Boolean, required: false, default: false},
+    updatedBy: {type: mongoose.Types.ObjectId, required: true, ref: 'User'},
     creator: {type: mongoose.Types.ObjectId, required: true, ref: 'User'},
-    owners: [{type: mongoose.Types.ObjectId, required: false, ref: 'User'}],
+    admin: [{type: mongoose.Types.ObjectId, required: false, ref: 'User'}],
     members: [{type: mongoose.Types.ObjectId, required: false, ref: 'User'}],
     password: {type: String, required: false, minlength: 6},
-    messages: [messageSchema]
+    messages: [messageSchema],
+    membersRead: {type: Map, required: false, of: Boolean},
 })
 
 chatRoomSchema.plugin(uniqueValidator);

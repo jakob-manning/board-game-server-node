@@ -1,6 +1,6 @@
-const checkAuth = require("../middleware/check-auth")
+const checkAuth = require("../../middleware/check-auth")
 const jwt = require("jsonwebtoken");
-const Room = require("../models/chatRoom");
+const Room = require("../../models/chatRoom");
 const { v4: uuidv4 } = require('uuid');
 
 const SERVER_TOKEN_KEY = process.env.WEB_TOKEN_SECRET_KEY
@@ -40,25 +40,6 @@ module.exports = (io,app) => {
         socket.on('join', async (room) => {
             console.log(`Socket ${socket.id} joining ${room}`);
             socket.join(room);
-
-            // ask mongoose for room's chat history
-            let chatRoom
-            try{
-                chatRoom = await Room.findById(room)
-            } catch (e) {
-                console.log(e);
-                return socket.emit("error", "Error loading a chat room, please try again.")
-            }
-            if(!chatRoom){
-                return socket.emit("error", "You tried loading a chat room that doesn't exist.")
-            }
-            if(!chatRoom.messages){
-                return socket.emit('roomHistory', {room, history: []});
-            }
-
-            let history = chatRoom.messages.map(message => message.toObject({getters: true}))
-
-            socket.emit('roomHistory', {room, history});
         });
 
         socket.on('chat', async (data) => {
@@ -69,7 +50,8 @@ module.exports = (io,app) => {
             let newMessage = {
                 userID: socket.userData.userID,
                 userName: socket.userData.name,
-                message
+                message,
+                timeStamp: new Date(),
             }
 
             // store user on the database
@@ -85,9 +67,13 @@ module.exports = (io,app) => {
                 return socket.emit("error", "Can't find your chat room.")
             }
 
-
             // Add message to list
             chatRoom.messages.push(newMessage)
+
+            // Update lastUpdated
+            let now = new Date()
+            chatRoom.lastUpdated = now
+            chatRoom.updatedBy = socket.userData.userID
 
             try{
                 await chatRoom.save()
@@ -96,8 +82,50 @@ module.exports = (io,app) => {
                 return socket.emit("error", "Couldn't save your message, please try again.")
             }
 
+            let payload ={ newMessage, room }
             console.log("new message saved: " + newMessage)
-            io.to(room).emit('chat', newMessage);
+            io.to(room).emit('chat', payload);
+
+            // Update user objects with chat state
+            // for every user in this chat (except the active user) go to their chats Unread document and change the state
+            if(!chatRoom.membersRead){
+                chatRoom.membersRead = new Map()
+            }
+            for(let member of chatRoom.members){
+                if(member.toString() === socket.userData.userID){
+                    chatRoom.membersRead.set(member.toString(), true)
+                }
+                else {
+                    chatRoom.membersRead.set(member.toString(), false)
+                }
+            }
         });
+
+        socket.on('markAsRead', async (data) => {
+            const { room } = data;
+            const userID = socket.userData.userID;
+
+            let chatRoom
+            try{
+                chatRoom = await Room.findById(room)
+            } catch (e) {
+                console.log(e);
+                return socket.emit("error", "Chatroom error, please try again.")
+            }
+            if(!chatRoom){
+                return socket.emit("error", "Can't find your chat room.")
+            }
+            if(!chatRoom.membersRead){
+                chatRoom.membersRead = new Map()
+            }
+            chatRoom.membersRead.set(userID, true)
+            console.log("members read logs")
+            console.log(userID)
+            console.log(chatRoom.membersRead)
+            console.log(typeof chatRoom.membersRead)
+
+            chatRoom.save()
+        })
+
     })
 }

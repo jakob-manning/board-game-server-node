@@ -19,6 +19,6 @@ module.exports = async (req, res, next) => {
         req.userData = {userID: decodedToken.userId, email: decodedToken.email}
         return next();
     } catch (e) {
-        return next(new HttpError("Authentication failed, please try again", 500));
+        return next(new HttpError("Authentication failed, please try logging in again.", 500));
     }
 };

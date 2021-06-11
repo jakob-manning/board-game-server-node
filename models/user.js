@@ -9,6 +9,7 @@ const userSchema = new Schema({
     email: {type: String, required: true, unique: true},
     password: {type: String, required: true, minlength: 6},
     active: {type: Boolean, required: false, default: false},
+    chatRooms: [{type: mongoose.Types.ObjectId, required: false, ref: 'ChatRoom'}],
 })
 
 userSchema.methods.isValidPassword = async function (password) {

@@ -43,7 +43,7 @@ app.use('/test', testRoutes)
 // Chat Room routes
 app.use('/api/chat', chatRoutes)
 
-require('./controllers/chat-socketsContoller')(io, app)
+require('./controllers/ChatRooms/chat-socketsContoller')(io, app)
 
 // // Auth Routes
 // app.use('/auth', authRoutes);
