@@ -137,8 +137,7 @@ module.exports = (io,app) => {
 
         socket.on('addUsersToRoom', (data) => {
             console.log("Request to Add Users To room")
-            console.log(data)
-            chatPermissionsHelper.addUsersToRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't add all users to room."))
+            chatPermissionsHelper.addUsersToRoom(data, socket, io, liveSockets).then(e=>console.log(e))
         })
 
         socket.on('addUserToRoom', (data) => {
@@ -146,6 +145,8 @@ module.exports = (io,app) => {
         })
 
         socket.on('removeUserFromRoom', (data) => {
+            console.log("server received request to remove user from room")
+            console.log(data)
             chatPermissionsHelper.removeUserFromRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't remove user from room."))
         })
 

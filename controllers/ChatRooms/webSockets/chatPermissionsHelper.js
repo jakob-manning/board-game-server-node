@@ -44,7 +44,7 @@ let chatRoomPermissions = {
         if(!room.open){
             // Verify that user is an admin of this room
             try{
-                let admin = room.admin.find( userID => userID.toString() === userID)
+                let admin = room.admin.find( userID => userID === userID)
                 if(!admin){
                     return socket.emit("error", "Tsk Tsk. you need to be admin to edit that room")
                 }
@@ -98,15 +98,16 @@ let chatRoomPermissions = {
             return socket.emit("error", "Couldn't add users to room.")
         }
 
+        console.log("inviting members to new room via web socket")
         // Broadcast the new room to all users
         membersToAdd.forEach( member => {
-            if(liveSockets[member.id]){
+            if(liveSockets[member]){
                 console.log("liveSockets[member.id]")
-                console.log(liveSockets[member.id])
-                liveSockets[member.id].forEach( connection => {
+                console.log(liveSockets[member])
+                liveSockets[member].forEach( connection => {
                     console.log("room")
                     console.log(room)
-                    io.to(connection).emit("newRoom", room)
+                    io.to(connection).emit("newRoom", {room: room.toObject({getters: true})})
                 })
             }
         })
@@ -139,7 +140,7 @@ let chatRoomPermissions = {
         if(!room.open) {
             // Verify that the current user is an admin of this room
             try {
-                let admin = room.admin.find(userID => userID.toString() === userID)
+                let admin = room.admin.find(item => item.toString() === userID)
                 if ( !admin ) {
                     return socket.emit("error", "Tsk Tsk. you need to be admin to edit this room")
                 }
@@ -179,17 +180,31 @@ let chatRoomPermissions = {
             return socket.emit("error", "Couldn't add user to room.")
         }
 
-        if(liveSockets[member.id]){
-            liveSockets[member.id].forEach( connection => {
-                io.to(connection).emit("newRoom", room)
+        if(liveSockets[memberToAdd]){
+            liveSockets[memberToAdd].forEach( connection => {
+                io.to(connection).emit("newRoom", {room: room.toObject({getters: true})})
             })
         }
+
+        // For each member of the room, broadcast a "new room meta data" event
+        room.members.forEach( member => {
+            console.log(liveSockets[member])
+            if(liveSockets[member]){
+                liveSockets[member].forEach( connection => {
+                    io.to(connection).emit("newRoomMetaData", {room: room.toObject({getters: true})})
+                })
+            }
+        })
     },
 
     // --- REMOVE USER FROM ROOM ---
     removeUserFromRoom: async (data, socket, io, liveSockets) => {
         let {roomID, memberToRemove} = data
         const userID = socket.userData.userID;
+
+        console.log("request to remove user from room")
+        console.log(roomID)
+        console.log(memberToRemove)
 
         // Get Room
         let room
@@ -205,7 +220,7 @@ let chatRoomPermissions = {
 
         // Verify that the current user is an admin of this room
         try{
-            let admin = room.admin.find( userID => userID.toString() === userID)
+            let admin = room.admin.find( userID => userID === userID)
             if(!admin){
                 return socket.emit("error", "Tsk Tsk. you need to be admin to edit this room")
             }
@@ -213,9 +228,14 @@ let chatRoomPermissions = {
             return socket.emit("error", "Maybe we're crazy, but it looks like your room doesn't exist.")
         }
 
+        console.log(room.members)
+        console.log(typeof room.members[0])
+
         // Remove user from Room
         room.members = room.members.filter( member => member.toString() !== memberToRemove)
         room.admin = room.admin.filter( admin => admin.toString() !== memberToRemove)
+
+        console.log(room.members)
 
         // Verify that there are still admin left
         if(room.admin.length === 0){
@@ -242,11 +262,25 @@ let chatRoomPermissions = {
             return socket.emit("error", "Couldn't remove user from room.")
         }
 
-        if(liveSockets[member.id]){
-            liveSockets[member.id].forEach( connection => {
+        console.log("room id check")
+        console.log(room.id)
+        console.log(room._id)
+
+        if(liveSockets[memberToRemove]){
+            liveSockets[memberToRemove].forEach( connection => {
                 io.to(connection).emit("roomDeleted", {roomID: room.id})
             })
         }
+
+        // For each member of the room, broadcast a "new room meta data" event
+        room.members.forEach( member => {
+            console.log(liveSockets[member])
+            if(liveSockets[member]){
+                liveSockets[member].forEach( connection => {
+                    io.to(connection).emit("newRoomMetaData", {room: room.toObject({getters: true})})
+                })
+            }
+        })
     },
 }
 
