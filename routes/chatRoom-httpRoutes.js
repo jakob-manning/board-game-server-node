@@ -31,15 +31,15 @@ router.post('/removeUser/:roomID',[
 
 router.post('/newRoom',
     [
-        check('name').notEmpty().isLength({max:50}).trim(),
-        check('description').isLength({max:250}).trim()
+        check('name').trim().notEmpty().isLength({max:50}),
+        check('description').trim().isLength({max:250})
     ],
     chatRoomControllers.createRoom)
 
 router.patch('/:id',
     [
-        check('name').notEmpty().isLength({max:50}),
-        check('description').isLength({max:250})
+        check('name').trim().notEmpty().isLength({max:50}),
+        check('description').trim().isLength({max:250})
     ],
     chatRoomControllers.updateRoom)
 

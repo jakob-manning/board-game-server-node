@@ -57,14 +57,16 @@ module.exports = (io,app) => {
 
         socket.on('chat', async (data) => {
 
-            console.log("userData: " + socket.userData)
+            console.log("userData: " + socket.userData.userID + " " + socket.userData.name)
             const { message, room } = data;
             console.log(`msg: ${message}, room: ${room}`);
+            let tempID = uuidv4()
             let newMessage = {
                 userID: socket.userData.userID,
                 userName: socket.userData.name,
                 message,
                 timeStamp: new Date(),
+                tempID
             }
 
             // store user on the database
@@ -89,15 +91,28 @@ module.exports = (io,app) => {
             chatRoom.updatedBy = socket.userData.userID
 
             try{
-                await chatRoom.save()
+                chatRoom = await chatRoom.save()
             } catch (e) {
                 console.log(e);
                 return socket.emit("error", "Couldn't save your message, please try again.")
             }
 
-            let payload ={ newMessage, room }
-            console.log("new message saved: " + newMessage)
-            io.to(room).emit('chat', payload);
+            newMessage = chatRoom.messages[chatRoom.messages.length - 1]
+            // If last message is current - send it to all users
+            if(newMessage.tempID === tempID){
+                let payload ={ newMessage: newMessage.toObject({getters: true}), room }
+                console.log("new message broadcast: ")
+                console.log(newMessage)
+                io.to(room).emit('chat', payload);
+            }
+            // otherwise find the right message and send it to users
+            else {
+                newMessage = chatRoom.messages.find( message => message.tempID === tempID)
+                let payload ={ newMessage: newMessage.toObject({getters: true}), room }
+                console.log("new message broadcast: ")
+                console.log(newMessage)
+                io.to(room).emit('chat', payload);
+            }
 
             // Update user objects with chat state
             // for every user in this chat (except the active user) go to their chats Unread document and change the state
@@ -112,6 +127,14 @@ module.exports = (io,app) => {
                     chatRoom.membersRead.set(member.toString(), false)
                 }
             }
+
+            try{
+                await chatRoom.save()
+            } catch (e) {
+                console.log(e);
+                return socket.emit("error", "Couldn't save your message, please try again.")
+            }
+
         });
 
         socket.on('markAsRead', async (data) => {

@@ -17,7 +17,7 @@ let chatRoomPermissions = {
         const userID = socket.userData.userID;
 
         // Check validity of membersToAdd
-        if(!membersToAdd){
+        if(!membersToAdd || membersToAdd.length === 0){
             return socket.emit("error", "No users added to chat because you didn't provide any.")
         }
 
@@ -44,7 +44,7 @@ let chatRoomPermissions = {
         if(!room.open){
             // Verify that user is an admin of this room
             try{
-                let admin = room.admin.find( userID => userID === userID)
+                let admin = room.admin.find( item => item.toString() === userID)
                 if(!admin){
                     return socket.emit("error", "Tsk Tsk. you need to be admin to edit that room")
                 }
@@ -218,14 +218,17 @@ let chatRoomPermissions = {
             return socket.emit("error", "That room doesn't exist. Maybe try using the app properly?")
         }
 
-        // Verify that the current user is an admin of this room
-        try{
-            let admin = room.admin.find( userID => userID === userID)
-            if(!admin){
-                return socket.emit("error", "Tsk Tsk. you need to be admin to edit this room")
+        // Check if you are trying to remove yourself (always allowed)
+        if(userID !== memberToRemove){
+            // Verify that the current user is an admin of this room
+            try{
+                let admin = room.admin.find( item => item.toString() === userID)
+                if(!admin){
+                    return socket.emit("error", "Tsk Tsk. you need to be admin to edit this room")
+                }
+            } catch (e) {
+                return socket.emit("error", "Maybe we're crazy, but it looks like your room doesn't exist.")
             }
-        } catch (e) {
-            return socket.emit("error", "Maybe we're crazy, but it looks like your room doesn't exist.")
         }
 
         console.log(room.members)

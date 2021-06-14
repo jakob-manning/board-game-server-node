@@ -28,7 +28,7 @@ let usersController = {
     getUserList: async (req, res, next) => {
         let users;
         try {
-            users = await User.find({}, '-password');
+            users = await User.find({active: true}, '-password');
         }catch (e) {
             console.log(e);
             return next(new HttpError("Something went wrong, couldn't find users.", 500))
@@ -38,8 +38,7 @@ let usersController = {
         users = users.map(user => {
             let userData = {
                 name: user.name,
-                email: user.email,
-                id: user.id
+                id: user.id,
             }
             return userData
         })

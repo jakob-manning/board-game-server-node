@@ -9,6 +9,7 @@ const messageSchema = new Schema({
     userName: {type: String, required: true, ref: 'User'},
     userID: {type: mongoose.Types.ObjectId, required: true, ref: 'User'},
     timeStamp: {type: Date, required: true, default: new Date()},
+    tempID: {type: String, required: false},
 })
 
 const chatRoomSchema = new Schema({
