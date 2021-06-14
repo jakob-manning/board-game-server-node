@@ -3,6 +3,7 @@ const { check } = require('express-validator')
 
 const usersControllers = require("../controllers/users-controller")
 const checkAuth = require("../middleware/check-auth")
+const checkActivation = require("../middleware/check-activation")
 
 const router = express.Router();
 
@@ -38,13 +39,15 @@ router.get('/activate/:activationToken',
 
 router.use(checkAuth)
 
-router.get('/', usersControllers.getUserList)
-
-router.get('/all', usersControllers.getUsers)
-
 router.get('/resendVerificationEmail',
     usersControllers.resendVerificationToken
 )
+
+router.use(checkActivation)
+
+router.get('/', usersControllers.getUserList)
+
+router.get('/all', usersControllers.getUsers)
 
 router.post('/refreshToken',
     usersControllers.refreshToken

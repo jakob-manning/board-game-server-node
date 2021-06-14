@@ -115,13 +115,14 @@ let usersController = {
             return next(new HttpError("Unable to log you in, please try signing in again."), 403)
         }
         // Send the user a verification email
-        try{
+        try {
             await sendVerificationEmail(email, encodeURIComponent(emailToken).replace(/\./g, '%2E'))
-        } catch (e) {
+        }catch (e) {
             console.log(e);
         }
 
-        // return a jwt token and their new user id
+        // return their user information
+        // TODO: return a JWT set to "inactive" so they can still resend an activation token
         res
             .status(201)
             .json({
@@ -152,8 +153,14 @@ let usersController = {
             return next(new HttpError("Couldn't find ya, are you sure you're spelling that right?", 403))
         }
 
-        // compare plain string password to hashed password
-        let isValidPassword = false;
+        // Confirm that user is active
+        if ( !user.active ){
+            return next(new HttpError("Your account is not active yet, " +
+                "Please check your email for an activation link and then sign in again.", 500))
+        }
+
+            // compare plain string password to hashed password
+            let isValidPassword = false;
         try {
             isValidPassword = await bcrypt.compare(password, user.password);
         }catch (e) {
@@ -252,7 +259,7 @@ let usersController = {
 
         // check token validity
         try {
-            // expose userId and token for future middleware
+            // pull userID from email token
             const decodedToken = await jwt.verify(activationToken, EMAIL_TOKEN_KEY);
             console.log(decodedToken)
             console.log("decoded token user ID: " + decodedToken.userId)
@@ -302,9 +309,9 @@ let usersController = {
 
         // Send the verification email
         console.log("token sent was: " + token)
-        try{
+        try {
             await sendVerificationEmail(req.userData.email, encodeURIComponent(token).replace(/\./g, '%2E'))
-        } catch (e) {
+        }catch (e) {
             console.log(e);
         }
 

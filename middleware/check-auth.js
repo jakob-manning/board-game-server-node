@@ -16,7 +16,7 @@ module.exports = async (req, res, next) => {
         //expose userId and Token for future middleware
         const decodedToken = await jwt.verify(token, SERVER_TOKEN_KEY);
         //add info to the req
-        req.userData = {userID: decodedToken.userId, email: decodedToken.email}
+        req.userData = {userID: decodedToken.userId, email: decodedToken.email, active: decodedToken.inactive}
         return next();
     } catch (e) {
         return next(new HttpError("Authentication failed, please try logging in again.", 500));
