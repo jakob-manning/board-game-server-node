@@ -151,6 +151,9 @@ let chatRoomPermissions = {
 
         // Add user to Room
         if(room.members.find(member => member.toString() === memberToAdd)){
+            if(memberToAdd === userID){
+                return socket.emit("error", "Eager Beaver, You're already in that room.")
+            }
             return socket.emit("error", "Silly Willy, that user is already in this room")
         }
         room.members.push(memberToAdd)

@@ -62,6 +62,22 @@ let chatRoomHttpController = {
         // res.json({rooms: rooms.map(room => room)})
     },
 
+    // --- GET PUBLIC ROOMS ---
+    getPublicChatRooms: async (req, res, next) => {
+        let rooms;
+        try {
+            rooms = await Room.find({open: true}, '-password');
+        }catch (e) {
+            console.log(e);
+            return next(new HttpError("Something went wrong, couldn't find rooms.", 500))
+        }
+        if ( !rooms ) {
+            return next(new HttpError("Looks like you don't have any chat rooms yet.", 500))
+        }
+
+        res.json({rooms: rooms.map(room => room.toObject({getters: true, flattenMaps: true}))})
+    },
+
     // --- GET ROOM BY NAME ---
     getRoomByName: async (req, res, next) => {
         const name = req.params.name;

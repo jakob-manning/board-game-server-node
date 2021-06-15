@@ -173,5 +173,20 @@ module.exports = (io,app) => {
             chatPermissionsHelper.removeUserFromRoom(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't remove user from room."))
         })
 
+        // socket.on("createChatRoom", (data) => {
+        //     console.log("new public channel created")
+        //     publicChannelHelper.createChannel(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't create channel."))
+        // })
+        //
+        // socket.on("deletePublicChatRoom", (data) => {
+        //     console.log("new public channel created")
+        //     publicChannelHelper.createChannel(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't create channel."))
+        // })
+        //
+        // socket.on("getPublicChatRooms", (data) => {
+        //     console.log("new public channel created")
+        //     publicChannelHelper.createChannel(data, socket, io, liveSockets).catch(e=>socket.emit("error", "Couldn't create channel."))
+        // })
+
     })
 }

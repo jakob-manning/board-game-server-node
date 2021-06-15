@@ -11,6 +11,8 @@ router.use(checkAuth)
 
 router.get('/',chatRoomControllers.getUserChatRooms)
 
+router.get('/public',chatRoomControllers.getPublicChatRooms)
+
 router.get('/all',chatRoomControllers.getChatRooms)
 
 router.get('/:id',chatRoomControllers.getRoomByID)
