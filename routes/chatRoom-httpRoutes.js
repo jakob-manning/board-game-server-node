@@ -45,6 +45,10 @@ router.patch('/:id',
     ],
     chatRoomControllers.updateRoom)
 
+router.post('/toggleOpen/:id', [
+    check('newOpenState').isBoolean()
+], chatRoomControllers.togglePublicRoom)
+
 router.delete('/:id', chatRoomControllers.deleteRoom)
 
 module.exports = router;

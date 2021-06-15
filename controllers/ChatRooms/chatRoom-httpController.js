@@ -269,6 +269,9 @@ let chatRoomHttpController = {
         const roomID = req.params.id;
         const userID = req.userData.userID
 
+        console.log("newOpenState")
+        console.log(newOpenState)
+
         // verify that user can update room
         let room;
         try {
@@ -308,7 +311,6 @@ let chatRoomHttpController = {
             .json({
                 message: "update successful",
                 userId: room.id,
-                oldState: room.open,
                 newState: newOpenState,
             });
 
