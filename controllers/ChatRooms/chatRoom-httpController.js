@@ -200,6 +200,7 @@ let chatRoomHttpController = {
                 creator: newRoom.creator,
                 admin: newRoom.admin,
                 members: newRoom.members,
+                open: newRoom.open
             });
     },
 
@@ -250,6 +251,65 @@ let chatRoomHttpController = {
                 newName: name,
                 oldDescription: room.description,
                 newDescription: description
+            });
+
+        return next()
+    },
+
+    // -- TOGGLE PUBLIC ROOM ---
+    togglePublicRoom: async (req, res, next) => {
+        const errors = validationResult(req)
+        if ( !errors.isEmpty() ) {
+            console.log(errors)
+            return next(new HttpError("Room-open has to be a boolean.", 422))
+        }
+
+        const {newOpenState} = req.body
+
+        const roomID = req.params.id;
+        const userID = req.userData.userID
+
+        // verify that user can update room
+        let room;
+        try {
+            room = await Room.findById(roomID)
+        }catch (e) {
+            return next(new HttpError("Something went wrong, couldn't complete update.", 500))
+        }
+
+        if ( !room ) {
+            return next(new HttpError("There's no room with that id. Go figure.", 403))
+        }
+
+        // Verify that the current user is an admin of this room
+        try {
+            let admin = room.admin.find(item => item.toString() === userID)
+            if ( !admin ) {
+                return next(new HttpError("Tsk Tsk. you need to be admin to edit this room", 403))
+            }
+        }catch (e) {
+            return next(new HttpError("Maybe we're crazy, but it looks like your room doesn't exist.", 500))
+        }
+
+        //make requested changes
+        room.open = newOpenState
+
+        // Save changes
+        try {
+            await room.save()
+        }catch (e) {
+            console.log(e)
+            return next(new HttpError("Something went wrong, couldn't save room.", 500))
+        }
+
+        // return
+        res
+            .status(201)
+            .json({
+                message: "update successful",
+                userId: room.id,
+                oldState: room.open,
+                newState: newOpenState,
             });
 
         return next()
